@@ -1,5 +1,5 @@
 experiments*/
 beit/semantic_segmentation/test_attn_map
 
-**/**/**/__pycache__/
+**/__pycache__
 *.pyc
