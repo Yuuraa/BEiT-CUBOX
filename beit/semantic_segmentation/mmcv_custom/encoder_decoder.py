@@ -8,6 +8,8 @@ from mmseg.models import builder
 from mmseg.models.builder import SEGMENTORS
 from mmseg.models.segmentors.base import BaseSegmentor
 
+from mmcv_custom.img_utils import save_img, save_tensor
+
 
 @SEGMENTORS.register_module()
 class PrintEncoderDecoder(BaseSegmentor):
@@ -180,11 +182,10 @@ class PrintEncoderDecoder(BaseSegmentor):
         w_grids = max(w_img - w_crop + w_stride - 1, 0) // w_stride + 1
         preds = img.new_zeros((batch_size, num_classes, h_img, w_img))
         count_mat = img.new_zeros((batch_size, 1, h_img, w_img))
-        #print(img_meta)
+
         ori_filename = img_meta[0]["ori_filename"].split(".")[0]
         for h_idx in range(h_grids):
             for w_idx in range(w_grids):
-                print(f"=============== ({h_idx}, {w_idx}) ================")
                 y1 = h_idx * h_stride
                 x1 = w_idx * w_stride
                 y2 = min(y1 + h_crop, h_img)
@@ -193,15 +194,13 @@ class PrintEncoderDecoder(BaseSegmentor):
                 x1 = max(x2 - w_crop, 0)
                 crop_img = img[:, :, y1:y2, x1:x2]
                 crop_seg_logit, attn_map = self.encode_decode(crop_img, img_meta)
-                torch.save(crop_img, f"{ori_filename}_{h_idx}_{w_idx}.pt")
-                torch.save(attn_map, f"{ori_filename}_attn_{h_idx}_{w_idx}.pt")
-                print("Attention!", attn_map != None)
+                save_img(crop_img.squeeze(0).cpu(), attn_map.squeeze(0).cpu(), ori_filename, h_idx, w_idx)
+
                 preds += F.pad(crop_seg_logit,
                                (int(x1), int(preds.shape[3] - x2), int(y1),
                                 int(preds.shape[2] - y2)))
 
                 count_mat[:, :, y1:y2, x1:x2] += 1
-                print(f"=============== ({h_idx}, {w_idx}) ================\n")
         assert (count_mat == 0).sum() == 0
         if torch.onnx.is_in_onnx_export():
             # cast count_mat to constant while exporting to ONNX
