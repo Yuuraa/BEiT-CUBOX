@@ -23,8 +23,6 @@ from mmcv_custom import load_checkpoint
 from mmseg.utils import get_root_logger
 from mmseg.models.builder import BACKBONES
 
-import pickle
-
 
 class DropPath(nn.Module):
     """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
