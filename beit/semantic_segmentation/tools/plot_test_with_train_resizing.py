@@ -15,6 +15,8 @@ from mmseg.apis import multi_gpu_test, single_gpu_test
 from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
 
+import sys
+sys.path.insert(0, os.path.dirname(os.getcwd()))
 from backbone import beit, beit_attn
 from mmcv_custom import encoder_decoder
 
