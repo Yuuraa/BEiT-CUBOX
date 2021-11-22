@@ -15,6 +15,9 @@ from mmcv_custom.img_utils import save_img, save_tensor
 class PrintEncoderDecoder(BaseSegmentor):
     """Encoder Decoder segmentors.
 
+    Print attention map from last self-attention block during inference time.
+    Attention map from all points from all attention heads saved.
+
     EncoderDecoder typically consists of backbone, decode_head, auxiliary_head.
     Note that auxiliary_head is only used for deep supervision during training,
     which could be dumped during inference.
