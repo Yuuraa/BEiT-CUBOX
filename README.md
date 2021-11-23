@@ -76,20 +76,22 @@ Tested on:
 ├── backbone
 |   └── beit.py
 ├── configs
-    ├── _base_
-    |    ├── datasets
-    |    |    ├── cubox.py
-    |    |    ├── cubox_test.py
-    |    |    ├── cubox_test_none.py
-    |    |    └── ...
-    |    ├── models
-    |    |    └── upernet_beit_cubox.py
-    |    └── schedules
-    |    |    ├── schedule_160k.py
-    |    |    └── schedule_320k.py
-    └── beit/upernet
-         ├── upernet_beit_base_12_256_slide_160k_ade20k_pt2ft.py
-         └── upernet_beit_base_12_256_slide_160k_ade20k_pt2ft_test.py
+|   ├── _base_
+|   |    ├── datasets
+|   |    |    ├── cubox.py
+|   |    |    ├── cubox_test.py
+|   |    |    ├── cubox_test_none.py
+|   |    |    └── ...
+|   |    ├── models
+|   |    |    └── upernet_beit_cubox.py
+|   |    └── schedules
+|   |    |    ├── schedule_160k.py
+|   |    |    └── schedule_320k.py
+|   └── beit/upernet
+|        ├── upernet_beit_base_12_256_slide_160k_ade20k_pt2ft.py
+|        └── upernet_beit_base_12_256_slide_160k_ade20k_pt2ft_test.py
+├── mmcv_custom 
+└── tools
 
 
 
