@@ -12,7 +12,7 @@ from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
 
 from backbone import beit
-from mmcv_custom import encoder_decoder
+from mmcv_custom import cubox_dataset
 
 
 def parse_args():
