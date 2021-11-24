@@ -87,9 +87,13 @@ Tested on:
 |   |    └── schedules
 |   |    |    ├── schedule_160k.py
 |   |    |    └── schedule_320k.py
-|   └── beit/upernet
-|        ├── upernet_beit_base_12_256_slide_160k_ade20k_pt2ft.py
-|        └── upernet_beit_base_12_256_slide_160k_ade20k_pt2ft_test.py
+|   ├── beit/upernet
+|   |    ├── upernet_beit_base_12_256_slide_160k_ade20k_pt2ft.py
+|   |    └── upernet_beit_base_12_256_slide_160k_ade20k_pt2ft_test.py
+|   └── test_configs
+|        ├── test_all.py
+|        ├── test_none.py
+|        └── ...
 ├── mmcv_custom 
 └── tools
 
