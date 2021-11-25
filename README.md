@@ -12,7 +12,7 @@
 <br/>
 
 #### **🐋 Docker Image**  
-```yoorachoi/beit:dist```
+```yoorachoi/beit:6.0-dist```
 
 <br/>
 
