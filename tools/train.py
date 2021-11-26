@@ -6,6 +6,7 @@ import time
 
 import mmcv
 import mmcv_custom
+from mmcv_custom.transforms import RandomSynthAug
 import torch
 from mmcv.runner import init_dist
 from mmcv.utils import Config, DictAction, get_git_hash
