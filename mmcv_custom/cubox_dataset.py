@@ -9,7 +9,7 @@ from mmseg.datasets.builder import DATASETS
 from mmseg.datasets.custom import CustomDataset
 
 
-@DATASETS.register_module()
+@DATASETS.register_module(force=True)
 class CUBoxDataset(CustomDataset):
     """
     CUBox Dataset
@@ -270,7 +270,7 @@ class CUBoxDataset(CustomDataset):
                [179, 224, 162], [166, 219, 164], [153, 214, 164], [139, 208, 164], 
                [126, 203, 164], [112, 198, 164], [99, 191, 165], [89, 180, 170], 
                [79, 168, 175], [69, 157, 180], [59, 146, 184], [50, 134, 188], 
-               [59, 123, 183], [68, 112, 177], [76, 101, 172], [85, 90, 167]][:201]
+               [59, 123, 183], [68, 112, 177], [76, 101, 172], [85, 90, 167]][1:201]
 
     def __init__(self, **kwargs):
         super(CUBoxDataset, self).__init__(

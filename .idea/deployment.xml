@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="DGX1V" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="DGX1V">
+        <serverdata>
+          <mappings>
+            <mapping deploy="research/BEiT-CUBOX" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
