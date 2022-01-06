@@ -1,5 +1,8 @@
 experiments*/
-beit/semantic_segmentation/test_attn_map
+attention_maps
+test_viz_comp_bgr
+test_viz_comp_all2all
+test_eval.txt
 
 **/__pycache__
 *.pyc
