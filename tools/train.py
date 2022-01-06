@@ -19,7 +19,6 @@ from mmseg.models import build_segmentor
 from mmseg.utils import collect_env, get_root_logger
 
 from backbone import beit
-from mmcv_custom import cubox_dataset
 
 
 def parse_args():

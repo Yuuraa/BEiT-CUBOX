@@ -12,7 +12,8 @@ from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
 
 from backbone import beit
-from mmcv_custom import cubox_dataset
+import mmcv_custom
+from mmcv_custom import CUBOXDataset
 
 
 def parse_args():
@@ -37,7 +38,7 @@ def parse_args():
         ' for generic datasets, and "cityscapes" for Cityscapes')
     parser.add_argument('--show', action='store_true', help='show results')
     parser.add_argument(
-        '--show-dir', help='directory where painted images will be saved')
+        '--show_dir', help='directory where painted images will be saved')
     parser.add_argument(
         '--gpu-collect',
         action='store_true',
