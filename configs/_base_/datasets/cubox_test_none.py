@@ -1,6 +1,7 @@
 # dataset settings
 # 테스트 할 때, 다양한 가림막 형태 별로 테스트 가능하도록 설정한 것
-dataset_type = 'CUBoxDataset'
+# dataset_type = 'CUBoxDataset'
+dataset_type = 'CUBOXDataset'
 data_root = '/dataset'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
