@@ -9,8 +9,9 @@ from mmseg.datasets.builder import DATASETS
 from mmseg.datasets.custom import CustomDataset
 
 
-@DATASETS.register_module()
-class CUBoxDataset(CustomDataset):
+@DATASETS.register_module(force=True)
+# class CUBoxDataset(CustomDataset):
+class CUBOXDataset(CustomDataset):
     """
     CUBox Dataset
     index 0번째가 배경(관심 없는 것들) 을 나타내도록 함
@@ -18,6 +19,7 @@ class CUBoxDataset(CustomDataset):
     """
 
     CLASSES = (
+        "background",
         "AirFryer",
         "AirtightContainer",
         "Apple",
@@ -270,11 +272,11 @@ class CUBoxDataset(CustomDataset):
                [179, 224, 162], [166, 219, 164], [153, 214, 164], [139, 208, 164], 
                [126, 203, 164], [112, 198, 164], [99, 191, 165], [89, 180, 170], 
                [79, 168, 175], [69, 157, 180], [59, 146, 184], [50, 134, 188], 
-               [59, 123, 183], [68, 112, 177], [76, 101, 172], [85, 90, 167]][:201]
+               [59, 123, 183], [68, 112, 177], [76, 101, 172], [85, 90, 167]][0:201]
 
     def __init__(self, **kwargs):
-        super(CUBoxDataset, self).__init__(
-            img_suffix=".jpg", seg_map_suffix=".png", reduce_zero_label=True, **kwargs
+        super(CUBOXDataset, self).__init__(
+            img_suffix=".jpg", seg_map_suffix=".png", reduce_zero_label=False, **kwargs
         )
 
     def results2img(self, results, imgfile_prefix, to_label_id):
@@ -301,11 +303,6 @@ class CUBoxDataset(CustomDataset):
             basename = osp.splitext(osp.basename(filename))[0]
 
             png_filename = osp.join(imgfile_prefix, f"{basename}.png")
-
-            # The  index range of official requirement is from 0 to 150.
-            # But the index range of output is from 0 to 149.
-            # That is because we set reduce_zero_label=True.
-            result = result + 1
 
             output = Image.fromarray(result.astype(np.uint8))
             output.save(png_filename)
