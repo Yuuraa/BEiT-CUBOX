@@ -8,6 +8,9 @@ from PIL import Image
 from mmseg.datasets.builder import DATASETS
 from mmseg.datasets.custom import CustomDataset
 
+from mmseg.core.evaluation.metrics import intersect_and_union
+from functools import reduce
+
 
 @DATASETS.register_module(force=True)
 # class CUBoxDataset(CustomDataset):
@@ -342,3 +345,51 @@ class CUBOXDataset(CustomDataset):
 
         result_files = self.results2img(results, imgfile_prefix, to_label_id)
         return result_files, tmp_dir
+
+
+
+    def iou_single(self,
+                 results,
+                 metric='IoU',
+                 logger=None,
+                 efficient_test=False,
+                 **kwargs):
+        """Evaluate the dataset.
+        Args:
+            results (list): Testing results of the dataset.
+            metric (str | list[str]): Metrics to be evaluated. 'mIoU' and
+                'mDice' are supported.
+            logger (logging.Logger | None | str): Logger used for printing
+                related information during evaluation. Default: None.
+        Returns:
+            dict[str, float]: Default metrics.
+
+        """
+        # print(self.ann_dir)
+        # for img_info in self.img_infos:
+        #     print(img_info['ann']['seg_map'])
+
+        gt_seg_maps = self.get_gt_seg_maps(efficient_test)
+
+        if self.CLASSES is None:
+            num_classes = len(
+                reduce(np.union1d, [np.unique(_) for _ in gt_seg_maps]))
+        else:
+            num_classes = len(self.CLASSES)
+        
+        num_imgs = len(results)
+        assert len(gt_seg_maps) == num_imgs
+        total_area_intersect = np.zeros((num_classes, ), dtype=np.float)
+        total_area_union = np.zeros((num_classes, ), dtype=np.float)
+        total_area_pred_label = np.zeros((num_classes, ), dtype=np.float)
+        total_area_label = np.zeros((num_classes, ), dtype=np.float)
+        
+        print("\n\n=== Per Sample Ground Truth IoU Score ===")
+        for i in range(num_imgs):
+            area_intersect, area_union, area_pred_label, area_label = \
+                intersect_and_union(results[i], gt_seg_maps[i], num_classes,
+                                    self.ignore_index, self.label_map, self.reduce_zero_label)
+            single_gt_label = np.unique(gt_seg_maps[i])[np.nonzero(np.unique(gt_seg_maps[i]))]
+            # single_gt_label = np.nonzero(np.unique(orig_gt_seg_maps[i]))
+            seg_name = self.img_infos[i]['ann']['seg_map']
+            print(f"Sample iou for {seg_name}: ", area_intersect[single_gt_label]/ area_union[single_gt_label]) #  한 개의 클래스에 대한 iou 출력

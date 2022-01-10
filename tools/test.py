@@ -11,8 +11,9 @@ from mmseg.apis import multi_gpu_test, single_gpu_test
 from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
 
-from backbone import beit
+from backbone import beit, beit_attn
 import mmcv_custom
+from mmcv_custom import encoder_decoder
 from mmcv_custom import CUBOXDataset
 
 
@@ -60,6 +61,7 @@ def parse_args():
         default='none',
         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--eval_sample_iou', action='store_true')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -70,10 +72,10 @@ def main():
     args = parse_args()
 
     assert args.out or args.eval or args.format_only or args.show \
-        or args.show_dir, \
+        or args.show_dir or args.eval_sample_iou, \
         ('Please specify at least one operation (save/eval/format/show the '
          'results / save the results) with the argument "--out", "--eval"'
-         ', "--format-only", "--show" or "--show-dir"')
+         ', "--format-only", "--show" or "--show-dir" or "--eval_sample_iou"')
 
     if args.eval and args.format_only:
         raise ValueError('--eval and --format_only cannot be both specified')
@@ -146,6 +148,8 @@ def main():
             dataset.format_results(outputs, **kwargs)
         if args.eval:
             dataset.evaluate(outputs, args.eval, **kwargs)
+        if args.eval_sample_iou:
+            dataset.iou_single(outputs, args.eval, **kwargs)
 
 
 if __name__ == '__main__':
