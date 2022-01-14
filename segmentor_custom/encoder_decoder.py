@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 from mmseg.core import add_prefix
 from mmseg.ops import resize
@@ -263,23 +264,33 @@ class EncoderDecoderAP(BaseSegmentor):
                 output = output.flip(dims=(2, ))
 
         return output
+    
+    def get_mask_confidence(self, mask_region, mask_logits):
+        if not mask_region.any(): # 해당 클래스에 대한 예측값이 존재하지 않을 경우, 점수는 0점
+            return 0
+        return mask_logits[mask_region].mean()
 
     def simple_logits(self, img, img_meta, rescale=True):
         """Simple test with single image."""
-        seg_logit = self.inference(img, img_meta, rescale)
-        seg_pred = seg_logit.argmax(dim=1)
+        seg_logit = self.inference(img, img_meta, rescale) # (batch_size, 201, h, w) # w, h 일수도 있고
+        seg_pred = seg_logit.argmax(dim=1) # (batch_size, h, w)
         
         seg_logit = seg_logit.cpu().numpy()
         seg_pred = seg_pred.cpu().numpy()
 
-        for cls in self.num_classes:
-            # ignore background
-            if cls != 0:
-                cls_region = seg_pred == cls
-
         # unravel batch dim
         seg_logit = list(seg_logit)
-        return seg_logit
+        seg_pred = list(seg_pred)
+        seg_confidence_per_cls = []
+        for i in range(len(seg_pred)):
+            cls_confidences = []
+            for cls in range(self.num_classes):
+                # if cls != 0: # ignore background
+                cls_region = seg_pred[i] == cls
+                cls_logits = seg_logit[i][cls]
+                cls_confidences.append(self.get_mask_confidence(cls_region, cls_logits))
+            seg_confidence_per_cls.append(np.array(cls_confidences))
+        return seg_pred, seg_confidence_per_cls
 
     def simple_test(self, img, img_meta, rescale=True):
         """Simple test with single image."""

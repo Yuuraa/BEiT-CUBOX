@@ -424,39 +424,43 @@ class CUBOXInstanceDataset(CustomDataset):
         """
         return seg_logit[segm_result].mean()
 
-    def segmaps_to_encoded_instance(self, total_seg_logits, total_seg_preds):
+    def segmaps_to_encoded_instance(self, total_mask_scores, total_seg_preds):
         """
         전체 데이터를 받아서 포매팅 해주는 것
         """
         # print('log', len(total_seg_logits))
         # print('seg', len(total_seg_preds))
         # print('sel', len(self))
-        assert len(total_seg_logits) == len(total_seg_preds) == len(self)
+        assert len(total_mask_scores) == len(total_seg_preds) == len(self)
         results = [
                     self.segmap_to_encoded_instance(
-                            total_seg_logits[idx],
+                            total_mask_scores[idx],
                             total_seg_preds[idx])
-                    for idx in range(len(total_seg_logits))
+                    for idx in range(len(total_mask_scores))
                 ]
         return results
 
     # def segmap_to_encoded_instance(self, seg_logits, seg_preds):
-    def segmap_to_encoded_instance(self, seg_logits, seg_preds):
+    def segmap_to_encoded_instance(self, mask_scores, seg_preds):
         """
         이거 하나의 샘플에 대해서만 해야 함!!!!!! 주의주의
         하나의 이미지 당 많은 seg_pred가 존재할 수 있기 때문에 이렇게 되는 것이다
         encode_mask_results + single/multi-gpu-test
+        mask_scores: (n_classes,) 차원, 각 클래스에 대한 모델의 예측값의 confidence
         """
         print("Self length", len(self))
         print("Seg length", len(seg_preds))
-        print("Seg logits", len(seg_logits))
-        print(seg_preds.shape)
-        if len(seg_preds.shape) == 2: 
-            print("Single result per batch!")
-            seg_preds = [seg_preds]
-        if len(seg_logits.shape) == 2: seg_logits = [seg_logits]
+        print("Mask confidence", len(mask_scores))
+        # if len(seg_preds.shape) == 2: # (w, h) 차원으로 단 한 개의 prediction만 있는 경우 = 항상!
+            # print("Single result per batch!")
+            # seg_preds = [seg_preds]
+        # if len(mask_scores.shape) == 1:
+            # mask_scores = [mask_scores]
+        seg_preds = [seg_preds]
+        mask_scores = [mask_scores]
+
         # test 추론 갯수 만큼 진행
-        # cls_segms = [[] for _ in range(len(self.CLASSES) - 1)]
+        cls_segms = [[] for _ in range(len(self.CLASSES) - 1)]
         encoded_mask_results = [[] for _ in range(len(self.CLASSES) - 1)]
         cls_mask_scores = [[] for _ in range(len(self.CLASSES) - 1)]
         for idx in range(len(seg_preds)): # 한 샘플 내에 여러 개의 prediction
@@ -468,8 +472,10 @@ class CUBOXInstanceDataset(CustomDataset):
                 # print(cls_segm.shape)
                 cls_segm = seg == label
                 # print(cls_segm.shape)
-                mask_score = self.get_mask_score(cls_segm, seg_logits[idx])
+                # mask_score = self.get_mask_score(cls_segm, seg_logits[idx])
+                mask_score = mask_scores[idx][label]
                 # cls_segms[label - 1].append(cls_segm)# background 무시
+                cls_segms[label - 1].append(cls_segm)
                 cls_mask_scores[label - 1].append(mask_score)
                 encoded_mask_results[label - 1].append(mask_util.encode(
                     np.array(cls_segm[:, :, np.newaxis], order='F', dtype='uint8'))[0])
@@ -513,7 +519,7 @@ class CUBOXInstanceDataset(CustomDataset):
         return result_files, tmp_dir
 
     def eval_map(self, 
-                seg_logits, 
+                mask_scores, 
                 seg_preds, 
                 metric='segm',
                 logger=None,
@@ -523,9 +529,7 @@ class CUBOXInstanceDataset(CustomDataset):
                 classwise=True
     ) -> None:
         """
-        나에게 ann_file이 생길까..?
-        ann_file을 받지 않고도 할 수 있는 방법은?
-        TODO gt 다루기, proposal_nums 파악
+        - mask_scores: list of predicted 
         """
         if not getattr(self, 'coco_gt', None):
             self.creat_coco_from_scratch()
@@ -543,7 +547,7 @@ class CUBOXInstanceDataset(CustomDataset):
         eval_results = OrderedDict()
 
         # TODO check again! === copy & paste region up & down
-        results = self.segmaps_to_encoded_instance(seg_logits, seg_preds)
+        results = self.segmaps_to_encoded_instance(mask_scores, seg_preds)
         result_files, tmp_dir = self.format_instanceseg_result(results)
         
         # TODO refactor 어차피 mertic segm만 볼거임
@@ -651,7 +655,7 @@ class CUBOXInstanceDataset(CustomDataset):
             img_info['id'] = i
             dataset['images'][i] = img_info
             seg_gt = np.array(img)
-            gt = self.segmap_to_encoded_instance(seg_gt > 0, seg_gt)
+            gt = self.segmap_to_encoded_instance([1 for _ in range(len(self.CLASSES))], seg_gt)
             gts.append(gt)
         coco.imgs = {img['id']: img for img in dataset['images']}
         coco.cats = {cat['id']: cat['name'] for cat in dataset['categories']}
@@ -669,7 +673,7 @@ class CUBOXInstanceDataset(CustomDataset):
 
     def evaluate(self,
                  results,
-                 logit_results=None,
+                 mask_scores=None,
                  metric='mIoU',
                  logger=None,
                  efficient_test=False,
@@ -681,6 +685,8 @@ class CUBOXInstanceDataset(CustomDataset):
                 'mDice' are supported.
             logger (logging.Logger | None | str): Logger used for printing
                 related information during evaluation. Default: None.
+            mask_scores(list): Mask confidency scores (calculated from logits) of the dataset. per class results are saved
+
         Returns:
             dict[str, float]: Default metrics.
         """
@@ -743,6 +749,6 @@ class CUBOXInstanceDataset(CustomDataset):
 
         if 'mAP' in metric:
             print("Calculating mAP")
-            map = self.eval_map(logit_results, results, metric='segm',logger=None, iou_thrs=None, iou_type='segm', proposal_nums=(100, 300, 1000),classwise=True)
+            map = self.eval_map(mask_scores, results, metric='segm',logger=None, iou_thrs=None, iou_type='segm', proposal_nums=(100, 300, 1000),classwise=True)
             print("mAP: ", map)
         return eval_results

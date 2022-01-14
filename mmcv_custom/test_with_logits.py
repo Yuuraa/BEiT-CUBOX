@@ -98,6 +98,7 @@ def multi_gpu_test_logits(model,
 
     model.eval()
     results = []
+    scores = []
     dataset = data_loader.dataset
     rank, world_size = get_dist_info()
     if rank == 0:
@@ -105,14 +106,25 @@ def multi_gpu_test_logits(model,
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result = model(return_loss=False, return_logits=True, rescale=True, **data)
-        if isinstance(result, list):
+            # print('result len', len(result)) # 2: pred, score
+            # print('first result length', len(result[0])) # batch_size
+            # print('second result length', len(result[1])) # batch_size
+            # print('first result shape', result[0][0].shape) # (n_classses, w, h)
+            # print('second result shape', result[1][0].shape) # (n_classes,)
+        pred, score = result
+
+        if isinstance(pred, list):
             if efficient_test:
-                result = [np2tmp(_) for _ in result]
-            results.extend(result)
+                pred = [np2tmp(_) for _ in pred]
+                score = [np2tmp(_) for _ in score]
+            results.extend(pred)
+            scores.extend(score)
         else:
             if efficient_test:
-                result = np2tmp(result)
-            results.append(result)
+                pred = np2tmp(pred)
+                score = np2tmp(score)
+            results.append(pred)
+            scores.append(score)
 
         if rank == 0:
             batch_size = data['img'][0].size(0)
@@ -121,10 +133,12 @@ def multi_gpu_test_logits(model,
 
     # collect results from all ranks
     if gpu_collect:
-        print("Collecting with GPU")
+        # print("Collecting with GPU")
         results = collect_results_gpu(results, len(dataset))
+        scores = collect_results_gpu(scores, len(dataset))
     else:
-        print("Collecgint with CPU")
-        results = collect_results_cpu(results, len(dataset), 'logits_tmpdir')
-    return results
+        # print("Collecgint with CPU")
+        results = collect_results_cpu(results, len(dataset), 'preds_tmpdir')
+        scores = collect_results_cpu(scores, len(dataset), 'scores_tmpdir')
+    return results, scores
 

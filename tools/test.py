@@ -14,7 +14,51 @@ from mmseg.models import build_segmentor
 from backbone import beit, beit_attn
 import mmcv_custom
 from mmcv_custom import encoder_decoder
-from mmcv_custom import CUBOXDataset
+from mmcv_custom import CUBOXDataset, CUBOXInstanceDataset
+from segmentor_custom.encoder_decoder import EncoderDecoderAP
+from mmcv_custom.test_with_logits import multi_gpu_test_logits, single_gpu_test_logits
+
+
+"""
+def logits_test(model, data_loader, distributed=False, device_ids=[], gpu_collect=False, tmpdir=None):
+    model.eval()
+    results = []
+    dataset = data_loader.dataset
+    print("Dataset length: ", len(dataset))
+    for i, data in enumerate(data_loader):
+        # print(data.keys()) # 결과: img_metas, img
+        # print(data['img'][0].shape)
+        # print(data['img_metas'])
+        with torch.no_grad():
+            # data 내 키우등는 imgs, img_metas가 포함되어 있음
+            # kwargs = {k: v for k,v in data.items() if k not in ['imgs', 'img_metas']}
+            kwargs = {
+                'img': data['img'][0].cuda(),
+                'img_meta': data['img_metas'][0].data[0]
+            }
+            # if 'imgs' in data:
+                # kwargs['img'] = data['imgs'][0] # 무슨 aug 관련해서 형태가 꼬여 있는듯. forward_test, simple_test 함수 등 확인하면 이해 됨
+            # if 'img_metas' in data:
+                # kwargs['img_meta'] = data['img_metas'][0].data[0] # DataContainer라서 사용이 안됨.. 그래서 data를 불러왔음
+            kwargs['rescale'] = True
+            if device_ids:
+                _, kwargs = model.to_kwargs([], kwargs, device_ids[0])
+                logit_result = model.module.inference(**kwargs[0])
+            else:
+                logit_result = model.module.inference(**kwargs)
+        
+        if isinstance(logit_result, list):
+            results.extend(logit_result)
+        else:
+            results.append(logit_result)
+    
+    if gpu_collect:
+        results = collect_results_gpu(results, len(dataset))
+    else:
+        results = collect_results_cpu(results, len(dataset), tmpdir)
+
+    return results
+"""
 
 
 def parse_args():
@@ -62,6 +106,7 @@ def parse_args():
         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument('--eval_sample_iou', action='store_true')
+    parser.add_argument('--inference_with_score', action='store_true', default=True)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -126,16 +171,28 @@ def main():
     if args.eval_options is not None:
         efficient_test = args.eval_options.get('efficient_test', False)
 
+    mask_scores =None
     if not distributed:
         model = MMDataParallel(model, device_ids=[0])
-        outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
+        if args.inference_with_score:
+            outputs_with_score = single_gpu_test_logits(model, data_loader, args.show, args.show_dir,
+                                    efficient_test)
+            outputs, mask_scores = outputs_with_score
+        else:
+            outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
                                   efficient_test)
     else:
+        device_ids= [torch.cuda.current_device()]
         model = MMDistributedDataParallel(
             model.cuda(),
-            device_ids=[torch.cuda.current_device()],
+            device_ids=device_ids,
             broadcast_buffers=False)
-        outputs = multi_gpu_test(model, data_loader, args.tmpdir,
+        if args.inference_with_score:
+            outputs_with_score = multi_gpu_test_logits(model, data_loader, args.tmpdir,
+                                    args.gpu_collect, efficient_test)
+            outputs, mask_scores = outputs_with_score
+        else:
+            outputs = multi_gpu_test(model, data_loader, args.tmpdir,
                                  args.gpu_collect, efficient_test)
 
     rank, _ = get_dist_info()
@@ -147,7 +204,12 @@ def main():
         if args.format_only:
             dataset.format_results(outputs, **kwargs)
         if args.eval:
-            dataset.evaluate(outputs, args.eval, **kwargs)
+            if 'mAP' in args.eval:
+                print("\nEvaluate with mAP!!")
+                print("mask length", len(mask_scores)) # num_samples
+                print("mask shape", mask_scores[0].shape) # 201
+                print("pred shape", outputs[0].shape) # 201
+            dataset.evaluate(outputs, metric=args.eval, mask_scores=mask_scores, **kwargs)
         if args.eval_sample_iou:
             dataset.iou_single(outputs, args.eval, **kwargs)
 
