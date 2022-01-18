@@ -17,6 +17,9 @@ from mmcv_custom import encoder_decoder
 from mmcv_custom import CUBOXDataset, CUBOXInstanceDataset
 from segmentor_custom.encoder_decoder import EncoderDecoderAP
 from mmcv_custom.test_with_logits import multi_gpu_test_logits, single_gpu_test_logits
+# from mmcv.utils import print_log
+# from mmseg.utils import get_root_logger
+from mmcv_custom.logging_utils import get_root_logger, print_log
 
 
 """
@@ -206,12 +209,13 @@ def main():
         if args.eval:
             if 'mAP' in args.eval:
                 print("\nEvaluate with mAP!!")
-                print("mask length", len(mask_scores)) # num_samples
-                print("mask shape", mask_scores[0].shape) # 201
-                print("pred shape", outputs[0].shape) # 201
+                # print("mask length", len(mask_scores)) # num_samples
+                # print("mask shape", mask_scores[0].shape) # 201
+                # print("pred shape", outputs[0].shape) # 201
             dataset.evaluate(outputs, metric=args.eval, mask_scores=mask_scores, **kwargs)
         if args.eval_sample_iou:
             dataset.iou_single(outputs, args.eval, **kwargs)
+    print_log("Done Evaluation", logger=get_root_logger())
 
 
 if __name__ == '__main__':

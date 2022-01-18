@@ -24,8 +24,11 @@ import copy
 
 from terminaltables import AsciiTable
 
-from mmcv.utils import print_log
-# from mmdet.datasets.api_wrappers import COCO, COCOeval
+# from mmcv.utils import print_log
+# from mmseg.utils import get_root_logger
+from mmcv_custom.logging_utils import print_log, get_root_logger
+
+
 from mmcv_custom.mmdet.api_wrappers import COCO, COCOeval
 import pycocotools.mask as mask_util
 
@@ -299,6 +302,45 @@ class CUBOXInstanceDataset(CustomDataset):
         super(CUBOXInstanceDataset, self).__init__(
             img_suffix=".jpg", seg_map_suffix=".png", reduce_zero_label=False, **kwargs
         )
+    
+    def load_annotations(self, img_dir, img_suffix, ann_dir, seg_map_suffix,
+                         split):
+        """Load annotation from directory.
+
+        Args:
+            img_dir (str): Path to image directory
+            img_suffix (str): Suffix of images.
+            ann_dir (str|None): Path to annotation directory.
+            seg_map_suffix (str|None): Suffix of segmentation maps.
+            split (str|None): Split txt file. If split is specified, only file
+                with suffix in the splits will be loaded. Otherwise, all images
+                in img_dir/ann_dir will be loaded. Default: None
+
+        Returns:
+            list[dict]: All image info of dataset.
+        """
+
+        img_infos = []
+        if split is not None:
+            with open(split) as f:
+                for line in f:
+                    img_name = line.strip()
+                    img_info = dict(filename=img_name + img_suffix)
+                    if ann_dir is not None:
+                        seg_map = img_name + seg_map_suffix
+                        img_info['ann'] = dict(seg_map=seg_map)
+                    img_infos.append(img_info)
+        else:
+            for img in mmcv.scandir(img_dir, img_suffix, recursive=True):
+                img_info = dict(filename=img)
+                if ann_dir is not None:
+                    seg_map = img.replace(img_suffix, seg_map_suffix)
+                    img_info['ann'] = dict(seg_map=seg_map)
+                img_infos.append(img_info)
+
+        logger = get_root_logger()
+        print_log(f'Loaded {len(img_infos)} images', logger=logger)
+        return img_infos
 
     def results2img(self, results, imgfile_prefix, to_label_id):
         """Write the segmentation results to images.
@@ -448,9 +490,9 @@ class CUBOXInstanceDataset(CustomDataset):
         encode_mask_results + single/multi-gpu-test
         mask_scores: (n_classes,) 차원, 각 클래스에 대한 모델의 예측값의 confidence
         """
-        print("Self length", len(self))
-        print("Seg length", len(seg_preds))
-        print("Mask confidence", len(mask_scores))
+        # print("Self length", len(self))
+        # print("Seg length", len(seg_preds))
+        # print("Mask confidence", len(mask_scores))
         # if len(seg_preds.shape) == 2: # (w, h) 차원으로 단 한 개의 prediction만 있는 경우 = 항상!
             # print("Single result per batch!")
             # seg_preds = [seg_preds]
@@ -645,7 +687,7 @@ class CUBOXInstanceDataset(CustomDataset):
         dataset = {}
         dataset['categories'] = [{'name': cate, 'id': i} for i, cate in enumerate(self.CLASSES[1:])]
         dataset['images'] = copy.deepcopy(self.img_infos)
-        print(dataset['images'])
+        # print(dataset['images'])
         gts = []
         for i, img_info in enumerate(dataset['images']):
             img = Image.open(osp.join(self.ann_dir, img_info['ann']['seg_map']))
@@ -670,39 +712,9 @@ class CUBOXInstanceDataset(CustomDataset):
 
         self.coco_gt = coco.loadRes(gt_loaded)
 
-
-    def evaluate(self,
-                 results,
-                 mask_scores=None,
-                 metric='mIoU',
-                 logger=None,
-                 efficient_test=False,
-                 **kwargs):
-        """Evaluate the dataset.
-        Args:
-            results (list): Testing results of the dataset.
-            metric (str | list[str]): Metrics to be evaluated. 'mIoU' and
-                'mDice' are supported.
-            logger (logging.Logger | None | str): Logger used for printing
-                related information during evaluation. Default: None.
-            mask_scores(list): Mask confidency scores (calculated from logits) of the dataset. per class results are saved
-
-        Returns:
-            dict[str, float]: Default metrics.
-        """
-
-        if isinstance(metric, str):
-            metric = [metric]
-        allowed_metrics = ['mIoU', 'mDice', 'mAP']
-        if not set(metric).issubset(set(allowed_metrics)):
-            raise KeyError('metric {} is not supported'.format(metric))
+    def eval_miou(self, gt_seg_maps, num_classes, results, metric, logger, efficient_test, **kwargs):
         eval_results = {}
-        gt_seg_maps = self.get_gt_seg_maps(efficient_test)
-        if self.CLASSES is None:
-            num_classes = len(
-                reduce(np.union1d, [np.unique(_) for _ in gt_seg_maps]))
-        else:
-            num_classes = len(self.CLASSES)
+
         ret_metrics = eval_metrics(
             results,
             gt_seg_maps,
@@ -711,7 +723,9 @@ class CUBOXInstanceDataset(CustomDataset):
             [m for m in metric if m != 'mAP'],
             label_map=self.label_map,
             reduce_zero_label=self.reduce_zero_label)
+
         class_table_data = [['Class'] + [m[1:] for m in metric if m != 'mAP'] + ['Acc']]
+        
         if self.CLASSES is None:
             class_names = tuple(range(num_classes))
         else:
@@ -743,12 +757,51 @@ class CUBOXInstanceDataset(CustomDataset):
         for i in range(1, len(summary_table_data[0])):
             eval_results[summary_table_data[0]
                          [i]] = summary_table_data[1][i] / 100.0
+
+    def evaluate(self,
+                 results,
+                 mask_scores=None,
+                 metric='mIoU',
+                 logger=None,
+                 efficient_test=False,
+                 **kwargs):
+        """Evaluate the dataset.
+        Args:
+            results (list): Testing results of the dataset.
+            metric (str | list[str]): Metrics to be evaluated. 'mIoU' and
+                'mDice' are supported.
+            logger (logging.Logger | None | str): Logger used for printing
+                related information during evaluation. Default: None.
+            mask_scores(list): Mask confidency scores (calculated from logits) of the dataset. per class results are saved
+
+        Returns:
+            dict[str, float]: Default metrics.
+        """
+
+        if isinstance(metric, str):
+            metric = [metric]
+        allowed_metrics = ['mIoU', 'mDice', 'mAP']
+        if not set(metric).issubset(set(allowed_metrics)):
+            raise KeyError('metric {} is not supported'.format(metric))
+
+        gt_seg_maps = self.get_gt_seg_maps(efficient_test)
+        if self.CLASSES is None:
+            num_classes = len(
+                reduce(np.union1d, [np.unique(_) for _ in gt_seg_maps]))
+        else:
+            num_classes = len(self.CLASSES)
+    
         if mmcv.is_list_of(results, str):
             for file_name in results:
                 os.remove(file_name)
+        
+        eval_results = {}
+        if 'mIoU' in metric:
+            eval_results = self.eval_miou(gt_seg_maps, num_classes, results, metric, logger, efficient_test, **kwargs)
 
         if 'mAP' in metric:
             print("Calculating mAP")
             map = self.eval_map(mask_scores, results, metric='segm',logger=None, iou_thrs=None, iou_type='segm', proposal_nums=(100, 300, 1000),classwise=True)
             print("mAP: ", map)
+
         return eval_results
