@@ -79,7 +79,7 @@ def calc_tp_fp(classes, coco_eval, areaRng='all', iouThr=0.75, maxDet=100, p=Non
         tp_sum = np.cumsum(tps, axis=1).astype(dtype=np.float) # (10(threshold 갯수), num_detected(class & area 기준))
         fp_sum = np.cumsum(fps, axis=1).astype(dtype=np.float) # (10, num_detected(class & area 기준))
 
-        print('sorted imgnames: ', imgNameSorted.shape, imgNameSorted)
+        # print('sorted imgnames: ', imgNameSorted.shape, imgNameSorted)
         tp_orig = tps[targ_iouThr_index]
 
         tp = np.array(tp_sum[targ_iouThr_index])
@@ -113,14 +113,13 @@ def calc_tp_fp(classes, coco_eval, areaRng='all', iouThr=0.75, maxDet=100, p=Non
         precision[k, :] = np.array(q)
         scores[k, :] = np.array(ss)
 
-        print('0', np.array(nos).shape)
-        print('1', imgNameSorted.shape)
         results = np.concatenate(
             [
                 np.array([nos]),
                 np.array([imgNameSorted]),
                 np.expand_dims(np.full(len(imgNameSorted), k), axis=0),
-                np.array([[cls_to_id[i.split("/")[-1].split("_")[0].lower()] for i in imgNameSorted]]),
+                # np.array([[cls_to_id[i.split("/")[-1].split("_")[0].lower()] for i in imgNameSorted]]),
+                np.array([[cls_to_id[i.split("/")[1].lower()] for i in imgNameSorted]]),
                 np.around(np.array([dtScoresSorted]), decimals=2),
                 np.array([tp_orig]),
                 np.array([tp]),
@@ -130,7 +129,6 @@ def calc_tp_fp(classes, coco_eval, areaRng='all', iouThr=0.75, maxDet=100, p=Non
             ],
             axis=0
         ).transpose()
-        # print("Result shape!", results.shape)
         """
         # assert results.shape == (len(E), EVAL_COLS)
         # results[:, 0] = nos
@@ -145,9 +143,6 @@ def calc_tp_fp(classes, coco_eval, areaRng='all', iouThr=0.75, maxDet=100, p=Non
         # results[:, 9] = np.array(rc)
         """
         det_table_data = np.concatenate([det_table_data, results], axis=0)
-        print("Data shape!", det_table_data.shape)
-        # cls_data_table = AsciiTable(results.tolist())
-        # print(cls_data_table.table)
 
     det_per_bbox_table = AsciiTable(det_table_data.tolist())
     ap_per_class = np.array([["Class", "AP"]])
@@ -181,7 +176,7 @@ def draw_precision_recall_curve(classes, precisions, recall_thresholds, save_dir
         class_precision = precisions[c]
         plt.ylim([0.0, 1.0])
         plt.figure()
-        plot = sns.lineplot(x=recall_thresholds, y=class_precision).set_title(cls.upper())
+        plot = sns.lineplot(x=recall_thresholds, y=class_precision).set_title(cls.capitalize())
         fig = plot.get_figure()
         fig.savefig(os.path.join(save_dir, f"{cls}_precision_recall_curve.png"))
         plt.close()
