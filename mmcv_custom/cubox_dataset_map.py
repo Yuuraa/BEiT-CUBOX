@@ -31,6 +31,7 @@ from mmcv_custom.logging_utils import print_log, get_root_logger
 
 from mmcv_custom.mmdet.api_wrappers import COCO, COCOeval
 import pycocotools.mask as mask_util
+from mmcv_custom.mmdet.pycocoeval_custom import calc_tp_fp, draw_precision_recall_curve
 
 
 @DATASETS.register_module(force=True)
@@ -620,6 +621,8 @@ class CUBOXInstanceDataset(CustomDataset):
 
         # ann_file 안에 img_ids에 대한 정보도 있어야 하는 거 같음
         cocoEval.evaluate()
+        precisions, rec_threshs = calc_tp_fp(self.CLASSES[1:], cocoEval)
+        draw_precision_recall_curve(self.CLASSES[1:], precisions, rec_threshs)
         cocoEval.accumulate()
 
         # Save coco summarize print information to logger
@@ -801,7 +804,7 @@ class CUBOXInstanceDataset(CustomDataset):
 
         if 'mAP' in metric:
             print("Calculating mAP")
-            map = self.eval_map(mask_scores, results, metric='segm',logger=None, iou_thrs=None, iou_type='segm', proposal_nums=(100, 300, 1000),classwise=True)
+            map = self.eval_map(mask_scores, results, metric='segm',logger=None, iou_thrs=None, iou_type='segm', proposal_nums=(100, 300, 1000),classwise=False)
             print("mAP: ", map)
 
         return eval_results
