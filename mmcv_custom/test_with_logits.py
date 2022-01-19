@@ -10,6 +10,7 @@ import torch
 import torch.distributed as dist
 from mmcv.image import tensor2imgs
 from mmcv.runner import get_dist_info
+import sys
 
 from mmseg.apis.test import collect_results_gpu, collect_results_cpu
 
@@ -53,7 +54,7 @@ def single_gpu_test_logits(model,
     model.eval()
     results = []
     dataset = data_loader.dataset
-    prog_bar = mmcv.ProgressBar(len(dataset))
+    prog_bar = mmcv.ProgressBar(task_num=len(dataset), file=sys.stderr)
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result = model(return_loss=False, return_logits=True, **data)
@@ -102,7 +103,7 @@ def multi_gpu_test_logits(model,
     dataset = data_loader.dataset
     rank, world_size = get_dist_info()
     if rank == 0:
-        prog_bar = mmcv.ProgressBar(len(dataset))
+        prog_bar = mmcv.ProgressBar(task_num=len(dataset), file=sys.stderr)
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result = model(return_loss=False, return_logits=True, rescale=True, **data)

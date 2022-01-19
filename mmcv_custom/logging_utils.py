@@ -3,8 +3,8 @@ import logging
 from datetime import datetime, date
 import time
 
-
 import logging
+import sys
 
 import torch.distributed as dist
 
@@ -64,7 +64,7 @@ def get_logger(name, log_file=None, log_level=logging.INFO, file_mode='w'):
         if name.startswith(logger_name):
             return logger
 
-    stream_handler = logging.StreamHandler()
+    stream_handler = logging.StreamHandler(sys.stdout)
     handlers = [stream_handler]
 
     if dist.is_available() and dist.is_initialized():
