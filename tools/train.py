@@ -20,6 +20,7 @@ from mmseg.utils import collect_env, get_root_logger
 
 from backbone import beit
 from backbone import swin_transformer
+from decode_heads import isa_head
 
 
 def parse_args():
