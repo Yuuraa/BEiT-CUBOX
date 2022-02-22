@@ -19,6 +19,7 @@ from mmseg.models import build_segmentor
 from mmseg.utils import collect_env, get_root_logger
 
 from backbone import beit
+from backbone import swin_transformer
 
 
 def parse_args():
